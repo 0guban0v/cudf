@@ -112,7 +112,6 @@ def test_array_select_pass_through(in_memory_engine: pl.GPUEngine):
         pl.when("keep").then("a").otherwise("b"),
         pl.col("a").cast(pl.List(pl.Int8)),
         pl.col("values").cast(pl.Array(pl.Int8, 2)),
-        pl.col("a").is_null(),
         pl.col("a").count(),
     ],
     ids=[
@@ -121,7 +120,6 @@ def test_array_select_pass_through(in_memory_engine: pl.GPUEngine):
         "non-column",
         "cast-from",
         "cast-to",
-        "is-null",
         "count",
     ],
 )
@@ -139,6 +137,124 @@ def test_array_expression_falls_back(
     ).select(array_expr)
 
     assert_ir_translation_raises(q, in_memory_engine, NotImplementedError)
+
+
+@pytest.mark.parametrize(
+    "array_expr",
+    [
+        pl.when("keep").then("a").otherwise("b").is_null(),
+        pl.col("a").arr.sum().is_null(),
+    ],
+    ids=["computed-array", "array-reduction"],
+)
+def test_unsupported_array_expression_null_check_falls_back(
+    in_memory_engine: pl.GPUEngine,
+    array_expr: pl.Expr,
+) -> None:
+    q = pl.LazyFrame(
+        {
+            "keep": [True, False],
+            "a": pl.Series([[1, 2], [3, 4]], dtype=pl.Array(pl.Int8, 2)),
+            "b": pl.Series([[5, 6], [7, 8]], dtype=pl.Array(pl.Int8, 2)),
+        }
+    ).select(array_expr)
+
+    assert_ir_translation_raises(q, in_memory_engine, NotImplementedError)
+
+
+@pytest.mark.parametrize(
+    "values,dtype",
+    [
+        (
+            [[[1, 2], [3, 4]], None],
+            pl.Array(pl.Array(pl.Int8, 2), 2),
+        ),
+        (
+            [["a", "b"], None],
+            pl.Array(pl.String, 2),
+        ),
+    ],
+    ids=["nested-array", "variable-width-inner"],
+)
+@pytest.mark.parametrize(
+    "predicate",
+    [pl.Expr.is_null, pl.Expr.is_not_null],
+    ids=lambda f: f"{f.__name__}()",
+)
+def test_unsupported_array_dtype_null_check_falls_back(
+    in_memory_engine: pl.GPUEngine,
+    values: list,
+    dtype: pl.DataType,
+    predicate,
+) -> None:
+    q = pl.LazyFrame({"a": pl.Series(values, dtype=dtype)}).select(
+        predicate(pl.col("a"))
+    )
+
+    assert_ir_translation_raises(q, in_memory_engine, NotImplementedError)
+
+
+@pytest.mark.parametrize("combine", [False, True], ids=["siblings", "combined"])
+def test_supported_and_unsupported_array_consumers_fall_back(
+    in_memory_engine: pl.GPUEngine,
+    *,
+    combine: bool,
+) -> None:
+    df = pl.LazyFrame(
+        {
+            "a": pl.Series([[1, 2], None], dtype=pl.Array(pl.Int8, 2)),
+        }
+    )
+    is_null = pl.col("a").is_null()
+    count = pl.col("a").count()
+    q = (
+        df.select(is_null | (count > 0))
+        if combine
+        else df.select(is_null, count.alias("count"))
+    )
+
+    assert_ir_translation_raises(q, in_memory_engine, NotImplementedError)
+
+
+@pytest.mark.parametrize(
+    "array_expr",
+    [
+        pl.col("a").null_count(),
+        pl.col("a").has_nulls(),
+    ],
+    ids=["null-count", "has-nulls"],
+)
+def test_array_null_reduction_falls_back(
+    in_memory_engine: pl.GPUEngine,
+    array_expr: pl.Expr,
+) -> None:
+    q = pl.LazyFrame(
+        {"a": pl.Series([[1, 2], None], dtype=pl.Array(pl.Int8, 2))}
+    ).select(array_expr)
+
+    assert_ir_translation_raises(q, in_memory_engine, NotImplementedError)
+
+
+@pytest.mark.parametrize(
+    "array_expr",
+    [
+        pl.col("a").is_null().sum(),
+        pl.col("a").is_not_null().sum(),
+        pl.col("a").is_null().any(),
+        pl.col("a").is_not_null().all(),
+    ],
+    ids=["is-null-sum", "is-not-null-sum", "is-null-any", "is-not-null-all"],
+)
+def test_optimized_array_null_reduction_falls_back(
+    in_memory_engine: pl.GPUEngine,
+    array_expr: pl.Expr,
+) -> None:
+    q = pl.LazyFrame(
+        {"a": pl.Series([[1, 2], None], dtype=pl.Array(pl.Int8, 2))}
+    ).select(array_expr)
+
+    with pytest.raises(NotImplementedError, match="unsupported operations"):
+        q.collect(engine=in_memory_engine)
 
 
 @pytest.mark.parametrize(
