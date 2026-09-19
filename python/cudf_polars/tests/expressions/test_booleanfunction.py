@@ -100,6 +100,7 @@ def test_boolean_function_unary(
 
 
 def test_array_outer_null_check(engine: pl.GPUEngine) -> None:
+    """Check Array outer validity across representative element dtypes."""
     df = pl.LazyFrame(
         {
             "float": pl.Series(
@@ -137,6 +138,7 @@ def test_array_outer_null_check(engine: pl.GPUEngine) -> None:
 
 
 def test_empty_array_outer_null_check(engine: pl.GPUEngine) -> None:
+    """Check Array outer validity for an empty input."""
     q = pl.LazyFrame({"a": pl.Series([], dtype=pl.Array(pl.Float32, 2))}).select(
         pl.col("a").is_null().alias("is_null"),
         pl.col("a").is_not_null().alias("is_not_null"),
@@ -150,6 +152,7 @@ def test_array_outer_null_check_layout(
     engine: pl.GPUEngine,
     layout: str,
 ) -> None:
+    """Check Array outer validity for sliced and chunked layouts."""
     if layout == "sliced":
         series = pl.Series(
             "a",
@@ -188,6 +191,7 @@ def test_array_outer_null_check_layout(
 
 
 def test_array_outer_null_check_composition(engine: pl.GPUEngine) -> None:
+    """Check that Array null predicates compose with supported expressions."""
     q = (
         pl.LazyFrame(
             {
@@ -224,6 +228,7 @@ def test_array_outer_null_check_filter(
     engine: pl.GPUEngine,
     predicate: Callable[[pl.Expr], pl.Expr],
 ) -> None:
+    """Check filtering by each Array outer-null predicate."""
     q = pl.LazyFrame(
         {
             "row": range(5),
@@ -250,6 +255,7 @@ def test_array_outer_null_check_filter_empty(
     predicate: Callable[[pl.Expr], pl.Expr],
     values: list[list[int | None] | None],
 ) -> None:
+    """Check Array null filters that retain no rows."""
     q = pl.LazyFrame(
         {
             "row": range(2),
@@ -261,6 +267,7 @@ def test_array_outer_null_check_filter_empty(
 
 
 def test_array_drop_nulls(engine: pl.GPUEngine) -> None:
+    """Check drop_nulls after Polars rewrites it to an Array null check."""
     q = pl.LazyFrame(
         {
             "row": range(4),

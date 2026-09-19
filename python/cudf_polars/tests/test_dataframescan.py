@@ -91,6 +91,7 @@ def test_array_pass_through(in_memory_engine: pl.GPUEngine):
 
 
 def test_array_select_pass_through(in_memory_engine: pl.GPUEngine):
+    """Check a direct Array projection alongside a scalar expression."""
     q = pl.LazyFrame(
         {
             "a": pl.Series([[1, 2]], dtype=pl.Array(pl.Int8, 2)),
@@ -127,6 +128,7 @@ def test_array_expression_falls_back(
     in_memory_engine: pl.GPUEngine,
     array_expr: pl.Expr,
 ):
+    """Check that unsupported Array consumers fail during translation."""
     q = pl.LazyFrame(
         {
             "keep": [True],
@@ -151,6 +153,7 @@ def test_unsupported_array_expression_null_check_falls_back(
     in_memory_engine: pl.GPUEngine,
     array_expr: pl.Expr,
 ) -> None:
+    """Check that a null predicate cannot hide a computed Array input."""
     q = pl.LazyFrame(
         {
             "keep": [True, False],
@@ -187,6 +190,7 @@ def test_unsupported_array_dtype_null_check_falls_back(
     dtype: pl.DataType,
     predicate,
 ) -> None:
+    """Check that null predicates do not enable unsupported Array dtypes."""
     q = pl.LazyFrame({"a": pl.Series(values, dtype=dtype)}).select(
         predicate(pl.col("a"))
     )
@@ -200,6 +204,7 @@ def test_supported_and_unsupported_array_consumers_fall_back(
     *,
     combine: bool,
 ) -> None:
+    """Check that a supported Array consumer cannot hide an unsupported one."""
     df = pl.LazyFrame(
         {
             "a": pl.Series([[1, 2], None], dtype=pl.Array(pl.Int8, 2)),
@@ -228,6 +233,7 @@ def test_array_null_reduction_falls_back(
     in_memory_engine: pl.GPUEngine,
     array_expr: pl.Expr,
 ) -> None:
+    """Check that direct Array null reductions remain unsupported."""
     q = pl.LazyFrame(
         {"a": pl.Series([[1, 2], None], dtype=pl.Array(pl.Int8, 2))}
     ).select(array_expr)
@@ -249,6 +255,7 @@ def test_optimized_array_null_reduction_falls_back(
     in_memory_engine: pl.GPUEngine,
     array_expr: pl.Expr,
 ) -> None:
+    """Check rejection after Polars rewrites Array null-check reductions."""
     q = pl.LazyFrame(
         {"a": pl.Series([[1, 2], None], dtype=pl.Array(pl.Int8, 2))}
     ).select(array_expr)

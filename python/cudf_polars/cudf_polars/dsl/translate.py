@@ -797,6 +797,7 @@ def _(
 
 @_translate_ir.register
 def _(node: plrs._ir_nodes.Distinct, translator: Translator, schema: Schema) -> ir.IR:
+    """Translate a Polars distinct IR node."""
     (keep, subset, maintain_order, zlice) = node.options
     keep = ir.Distinct._KEEP_MAP[keep]
     subset = frozenset(subset) if subset is not None else None
@@ -929,6 +930,7 @@ def _(node: plrs._ir_nodes.HConcat, translator: Translator, schema: Schema) -> i
 
 @_translate_ir.register
 def _(node: plrs._ir_nodes.Sink, translator: Translator, schema: Schema) -> ir.IR:
+    """Translate a Polars file-sink IR node."""
     payload = json.loads(node.payload)
     try:
         file = payload["File"]
@@ -1056,6 +1058,7 @@ def _(
     dtype: DataType,
     schema: Schema,
 ) -> expr.Expr:
+    """Translate a Polars function expression."""
     name, *options = node.function_data
     options = tuple(options)
     if isinstance(name, plrs._expr_nodes.StringFunction):

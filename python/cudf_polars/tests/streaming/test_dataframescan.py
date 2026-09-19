@@ -81,6 +81,7 @@ def test_nullable_array_dataframescan(
     streaming_engine_factory,
     parquet_stats_executor: concurrent.futures.ThreadPoolExecutor,
 ):
+    """Check Array outer null predicates across streaming partitions."""
     streaming_engine = streaming_engine_factory(
         StreamingOptions(
             max_rows_per_partition=2,
